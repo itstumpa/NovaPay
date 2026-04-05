@@ -1,34 +1,34 @@
-// src/config/passport.ts
-import { Request } from "express";
-import passport from "passport";
-import { Strategy as JwtStrategy } from "passport-jwt";
-import config from "./index";
-import { prisma } from "./prisma";
+// // src/config/passport.ts
+// import { Request } from "express";
+// import passport from "passport";
+// import { Strategy as JwtStrategy } from "passport-jwt";
+// import config from "./index";
+// import { prisma } from "./prisma";
 
-// ✅ Extract JWT from cookie instead of Authorization header
-const cookieExtractor = (req: Request): string | null => {
-  return req?.cookies?.accessToken ?? null;
-};
+// // ✅ Extract JWT from cookie instead of Authorization header
+// const cookieExtractor = (req: Request): string | null => {
+//   return req?.cookies?.accessToken ?? null;
+// };
 
-passport.use(
-  new JwtStrategy(
-    {
-      jwtFromRequest: cookieExtractor, // ✅ reads from cookie
-      secretOrKey: config.accessSecret as string,
-      passReqToCallback: true,
-    },
-    async (_req, payload, done) => {
-      try {
-        const user = await prisma.user.findUnique({
-          where: { id: payload.sub },
-        });
-        if (!user) return done(null, false);
-        return done(null, user);
-      } catch (err) {
-        return done(err, false);
-      }
-    },
-  ),
-);
+// passport.use(
+//   new JwtStrategy(
+//     {
+//       jwtFromRequest: cookieExtractor, // ✅ reads from cookie
+//       secretOrKey: config.accessSecret as string,
+//       passReqToCallback: true,
+//     },
+//     async (_req, payload, done) => {
+//       try {
+//         const user = await prisma.user.findUnique({
+//           where: { id: payload.sub },
+//         });
+//         if (!user) return done(null, false);
+//         return done(null, user);
+//       } catch (err) {
+//         return done(err, false);
+//       }
+//     },
+//   ),
+// );
 
-export default passport;
+// export default passport;

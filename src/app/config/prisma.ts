@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { logger } from "../../utils/logger";
 
 declare global {
@@ -6,25 +7,30 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-const prisma =
-  global.prisma ??
-  new PrismaClient({
+const createPrismaClient = () => {
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+
+  const client = new PrismaClient({
+    adapter,
     log: [
       { level: "error", emit: "event" },
       { level: "warn", emit: "event" },
     ],
   });
 
-// Event listeners
-prisma.$on("error", (e: any) => {
-  logger.error("Prisma error", { message: e.message, target: e.target });
-});
+  client.$on("error", (e: any) => {
+    logger.error("Prisma error", { message: e.message, target: e.target });
+  });
 
-prisma.$on("warn", (e: any) => {
-  logger.warn("Prisma warning", { message: e.message, target: e.target });
-});
+  client.$on("warn", (e: any) => {
+    logger.warn("Prisma warning", { message: e.message, target: e.target });
+  });
 
-// Save instance in development
+  return client;
+};
+
+const prisma = global.prisma ?? createPrismaClient();
+
 if (process.env.NODE_ENV !== "production") {
   global.prisma = prisma;
 }

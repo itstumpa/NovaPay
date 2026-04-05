@@ -3,7 +3,7 @@ import cors from "cors";
 import router from "./app/routers";
 import passport from "passport";
 import "./app/config/passport";
-import config from "./app/config/index";
+import { config } from "./app/config/index";
 import notFound from "./app/middlewares/notFound";
 import globalErrorHandler from "./app/middlewares/globalErrorHandler";
 import cookieParser from "cookie-parser";
@@ -16,7 +16,7 @@ const app: Application = express();
 // middlewares
 app.use(
   cors({
-    origin: config.frontend_url,
+    origin: config.FRONTEND_URL,
     credentials: true,
   }),
 );
@@ -38,7 +38,7 @@ app.use("/api/v1", router);
 app.get("/", (_req: Request, res: Response) => {
   res.send({
     message: "Server Is Running..",
-    environment: config.node_env,
+    environment: config.NODE_ENV,
     uptime: process.uptime().toFixed(2) + " second",
     timeStamp: new Date().toISOString(),
   });

@@ -1,285 +1,86 @@
-// src/app/modules/auth/auth.service.ts
-import bcrypt from "bcrypt";
-import crypto from "crypto";
-import { Response } from "express";
-import jwt, { SignOptions } from "jsonwebtoken";
-import ApiError from "../../utils/apiErrors";
-import { setAuthCookies } from "../../utils/cookieHelpers";
-import { sendEmail } from "../../utils/sendEmail";
-import config from "../config/index";
-import { prisma } from "../config/prisma";
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import  prisma  from '../config/prisma';
+import { env } from '../config/env';
+import { UserRole, UserStatus } from '@prisma/client';
+import { logger } from '../../utils/logger';
 
-// ── Token helpers ─────────────────────────────────────────────────────────────
+export class AuthService {
+  async register(data: {
+    email: string;
+    password: string;
+    name: string;
+    role?: UserRole;
+  }) {
+    const existing = await prisma.user.findUnique({ where: { email: data.email } });
+    if (existing) throw new Error('Email already registered');
 
-const ACCESS_EXPIRES = (process.env.JWT_ACCESS_EXPIRES ||
-  "15m") as SignOptions["expiresIn"];
-const REFRESH_EXPIRES = (process.env.JWT_REFRESH_EXPIRES ||
-  "7d") as SignOptions["expiresIn"];
+    const passwordHash = await bcrypt.hash(data.password, 12);
 
-const generateAccessToken = (userId: string, role: string) =>
-  jwt.sign({ sub: userId, role }, process.env.JWT_ACCESS_SECRET as string, {
-    expiresIn: ACCESS_EXPIRES,
-  });
+    const user = await prisma.user.create({
+      data: {
+        email: data.email.toLowerCase().trim(),
+        passwordHash,
+        name: data.name,
+        role: data.role ?? UserRole.CUSTOMER,
+        status: UserStatus.ACTIVE,
+      },
+      select: { id: true, email: true, name: true, role: true, status: true, createdAt: true },
+    });
 
-const generateRefreshToken = (userId: string) =>
-  jwt.sign({ sub: userId }, process.env.JWT_REFRESH_SECRET as string, {
-    expiresIn: REFRESH_EXPIRES,
-  });
+    // Auto-create a USD wallet on registration
+    await prisma.wallet.create({
+      data: { userId: user.id, currency: 'USD', balance: 0 },
+    });
 
-// ── Signup ────────────────────────────────────────────────────────────────────
-
-export const signup = async (data: {
-  name: string;
-  email: string;
-  password: string;
-  role?: "CUSTOMER" | "VENDOR";
-}) => {
-  const existing = await prisma.user.findUnique({
-    where: { email: data.email },
-  });
-  if (existing) throw new ApiError(409, "Email already in use");
-
-  const hashedPassword = await bcrypt.hash(data.password, 10);
-
-  // generate email verification token
-  const emailVerifyToken = crypto.randomBytes(32).toString("hex");
-  const emailVerifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24hrs
-
-  const user = await prisma.user.create({
-    data: {
-      ...data,
-      password: hashedPassword,
-      emailVerifyToken,
-      emailVerifyExpiry,
-    },
-    select: { id: true, name: true, email: true, role: true },
-  });
-
-  const verifyUrl = `${process.env.APP_URL}/api/v1/auth/verify-email?token=${emailVerifyToken}`;
-
-  await sendEmail({
-    to: user.email,
-    subject: "Verify your ElectroMart account",
-    html: `<p>Hi ${user.name},</p>
-           <p>Click the link below to verify your email:</p>
-           <a href="${verifyUrl}">${verifyUrl}</a>
-           <p>This link expires in 24 hours.</p>`,
-  });
-
-  return user;
-};
-
-// ── Verify Email ──────────────────────────────────────────────────────────────
-
-export const verifyEmail = async (token: string) => {
-  const user = await prisma.user.findFirst({
-    where: {
-      emailVerifyToken: token,
-      emailVerifyExpiry: { gt: new Date() },
-    },
-  });
-
-  if (!user) throw new ApiError(400, "Invalid or expired verification token");
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      isEmailVerified: true,
-      emailVerifyToken: null,
-      emailVerifyExpiry: null,
-    },
-  });
-
-  return { message: "Email verified successfully" };
-};
-
-// ── Resend Verification ───────────────────────────────────────────────────────
-
-export const resendEmailVerification = async (email: string) => {
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) throw new ApiError(404, "User not found");
-  if (user.isEmailVerified) throw new ApiError(400, "Email already verified");
-
-  const emailVerifyToken = crypto.randomBytes(32).toString("hex");
-  const emailVerifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { emailVerifyToken, emailVerifyExpiry },
-  });
-
-  const verifyUrl = `${process.env.CLIENT_URL}/verify-email?token=${emailVerifyToken}`;
-
-  await sendEmail({
-    to: user.email,
-    subject: "Verify your ElectroMart account",
-    html: `<p>New verification link: <a href="${verifyUrl}">${verifyUrl}</a></p>`,
-  });
-
-  return { message: "Verification email resent" };
-};
-
-// ── Signin ────────────────────────────────────────────────────────────────────
-
-export const signin = async (
-  email: string,
-  password: string,
-  res: Response,
-) => {
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) throw new ApiError(401, "Invalid email or password");
-
-  const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) throw new ApiError(401, "Invalid email or password");
-
-  if (!user.isEmailVerified)
-    throw new ApiError(403, "Please verify your email before signing in");
-
-  const accessToken = generateAccessToken(user.id, user.role);
-  const refreshToken = generateRefreshToken(user.id);
-
-  setAuthCookies(res, accessToken, refreshToken); // ✅ both in cookies
-
-  return {
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
-  };
-};
-
-// ── Refresh Token ─────────────────────────────────────────────────────────────
-
-export const refreshToken = async (token: string) => {
-  try {
-    const payload = jwt.verify(token, config.refreshSecret as string) as {
-      sub: string;
-    };
-
-    const user = await prisma.user.findUnique({ where: { id: payload.sub } });
-    if (!user) throw new ApiError(401, "User not found");
-
-    const accessToken = generateAccessToken(user.id, user.role);
-    return { accessToken };
-  } catch {
-    throw new ApiError(401, "Invalid or expired refresh token");
+    logger.info('New user registered', { userId: user.id, email: user.email, role: user.role });
+    return user;
   }
-};
 
-// ─── Logout ───────────────────────────────────────────────────────────────────
+  async login(email: string, password: string, ipAddress?: string, userAgent?: string) {
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
 
-export const logout = async () => {
-  return { message: "Logged out successfully" };
-};
+    if (!user) throw new Error('Invalid email or password');
+    if (user.status === UserStatus.SUSPENDED) throw new Error('Account suspended. Contact support.');
+    if (user.status === UserStatus.PENDING_VERIFICATION) throw new Error('Account pending verification');
 
-// ── Forgot Password ───────────────────────────────────────────────────────────
+    const passwordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!passwordValid) throw new Error('Invalid email or password');
 
-export const requestPasswordReset = async (email: string) => {
-  const user = await prisma.user.findUnique({ where: { email } });
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      env.JWT_SECRET,
+      { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] }
+    );
 
-  // always return same message — don't reveal if email exists
-  if (!user) return { message: "If that email exists, a reset code was sent" };
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-  const resetToken = crypto.randomInt(100000, 999999).toString(); // 6-digit code
-  const resetExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+    await prisma.session.create({
+      data: { userId: user.id, token, expiresAt, ipAddress, userAgent },
+    });
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      passwordResetToken: resetToken,
-      passwordResetExpiry: resetExpiry,
-    },
-  });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
 
-  await sendEmail({
-    to: user.email,
-    subject: "ElectroMart Password Reset Code",
-    html: `<p>Your password reset code is: <strong>${resetToken}</strong></p>
-           <p>This code expires in 15 minutes.</p>`,
-  });
+    logger.info('User logged in', { userId: user.id, email: user.email });
 
-  return { message: "If that email exists, a reset code was sent" };
-};
+    return {
+      token,
+      expiresAt,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        status: user.status,
+      },
+    };
+  }
 
-// ── Verify Reset Code ─────────────────────────────────────────────────────────
-
-export const verifyResetCode = async (email: string, code: string) => {
-  const user = await prisma.user.findFirst({
-    where: {
-      email,
-      passwordResetToken: code,
-      passwordResetExpiry: { gt: new Date() },
-    },
-  });
-
-  if (!user) throw new ApiError(400, "Invalid or expired reset code");
-  return { message: "Code verified. You can now reset your password." };
-};
-
-// ── Reset Password ────────────────────────────────────────────────────────────
-
-export const resetPassword = async (
-  email: string,
-  code: string,
-  newPassword: string,
-) => {
-  const user = await prisma.user.findFirst({
-    where: {
-      email,
-      passwordResetToken: code,
-      passwordResetExpiry: { gt: new Date() },
-    },
-  });
-
-  if (!user) throw new ApiError(400, "Invalid or expired reset code");
-
-  const hashed = await bcrypt.hash(newPassword, 10);
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      password: hashed,
-      passwordResetToken: null,
-      passwordResetExpiry: null,
-    },
-  });
-
-  return { message: "Password reset successful" };
-};
-
-// ── Change Password ───────────────────────────────────────────────────────────
-
-export const changePassword = async (
-  userId: string,
-  oldPassword: string,
-  newPassword: string,
-) => {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) throw new ApiError(404, "User not found");
-
-  const isMatch = await bcrypt.compare(oldPassword, user.password);
-  if (!isMatch) throw new ApiError(400, "Old password is incorrect");
-
-  const hashed = await bcrypt.hash(newPassword, 10);
-  await prisma.user.update({
-    where: { id: userId },
-    data: { password: hashed },
-  });
-
-  return { message: "Password changed successfully" };
-};
-
-// ── Get Me ────────────────────────────────────────────────────────────────────
-
-export const getMe = async (userId: string) => {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      isEmailVerified: true,
-      createdAt: true,
-    },
-  });
-  if (!user) throw new ApiError(404, "User not found");
-  return user;
-};
+  async logout(token: string) {
+    await prisma.session.deleteMany({ where: { token } });
+    logger.info('User logged out');
+  }
+}

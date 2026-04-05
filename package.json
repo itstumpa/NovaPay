@@ -8,7 +8,6 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "scripts": {
-    "seed": "ts-node prisma/seed.ts",
     "test": "jest --runInBand",
     "dev": "ts-node-dev --respawn --transpile-only ./src/server.ts",
     "postinstall": "prisma generate",
@@ -50,7 +49,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.3.0",
+    "@prisma/adapter-pg": "^7.6.0",
     "@prisma/client": "^7.4.2",
     "axios": "^1.13.4",
     "bcrypt": "^6.0.0",
@@ -73,7 +72,7 @@
     "parser": "^0.1.4",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
-    "pg": "^8.18.0",
+    "pg": "^8.20.0",
     "qs": "^6.14.1",
     "redis": "^5.10.0",
     "slugify": "^1.6.6",

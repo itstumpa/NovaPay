@@ -1,89 +1,69 @@
-import { Request, Response } from "express";
-import catchAsync from "../../utils/catchAsync";
-import sendResponse from "../../utils/sendResponse";
-// import AppError from "../../../utils/AppError"; // ✅ import added
-import * as AuthService from "./auth.service";
-import ApiError from "../../utils/apiErrors";
+import { Request, Response, NextFunction } from 'express';
+import { AuthService } from './auth.service';
+import { sendSuccess, sendError } from '../../utils/apiResponse';
+import { z } from 'zod';
 
-export const signup = catchAsync(async (req: Request, res: Response) => {
-  const user = await AuthService.signup(req.body);
-  sendResponse(res, {
-    statusCode: 201,
-    success: true,
-    message: "Account created. Please verify your email.",
-    data: user,
-  });
+const service = new AuthService();
+
+const registerSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  name: z.string().min(2).max(100),
 });
 
-// ✅ Removed verifyEmailHandler — this is the single source of truth
-export const verifyEmail = catchAsync(async (req: Request, res: Response) => {
-  const token = req.query.token as string; // ✅ read from query param, not body
-
-  if (!token) {
-    throw new ApiError(400, "Invalid or missing token");
-  }
-
-  const result = await AuthService.verifyEmail(token);
-  sendResponse(res, {
-    statusCode: 200,
-    success: true,
-    message: result.message,
-    data: null,
-  });
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
 });
 
-export const resendEmailVerification = catchAsync(async (req: Request, res: Response) => {
-  const result = await AuthService.resendEmailVerification(req.body.email);
-  sendResponse(res, { statusCode: 200, success: true, message: result.message, data: null });
-});
+export class AuthController {
+  register = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const body = registerSchema.parse(req.body);
+      const user = await service.register(body);
+      sendSuccess(res, user, 201);
+    } catch (err) {
+      if (err instanceof Error && err.message === 'Email already registered') {
+        sendError(res, 409, 'EMAIL_TAKEN', err.message);
+        return;
+      }
+      next(err);
+    }
+  };
 
-// auth.controller.ts
-export const signin = catchAsync(async (req: Request, res: Response) => {
-  const { email, password } = req.body;
-  const result = await AuthService.signin(email, password, res); // ✅ pass res
-  sendResponse(res, {
-    statusCode: 200,
-    success: true,
-    message: "Signed in successfully",
-    data: result,
-  });
-});
+  login = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email, password } = loginSchema.parse(req.body);
+      const result = await service.login(
+        email,
+        password,
+        req.ip,
+        req.headers['user-agent']
+      );
+      sendSuccess(res, result);
+    } catch (err) {
+      if (err instanceof Error && (
+        err.message.includes('Invalid') ||
+        err.message.includes('suspended') ||
+        err.message.includes('pending')
+      )) {
+        sendError(res, 401, 'AUTH_FAILED', err.message);
+        return;
+      }
+      next(err);
+    }
+  };
 
-export const refreshToken = catchAsync(async (req: Request, res: Response) => {
-  const { refreshToken } = req.body;
-  const result = await AuthService.refreshToken(refreshToken);
-  sendResponse(res, { statusCode: 200, success: true, message: "Token refreshed", data: result });
-});
+  logout = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const token = req.headers.authorization?.split(' ')[1] ?? '';
+      await service.logout(token);
+      sendSuccess(res, { message: 'Logged out successfully' });
+    } catch (err) { next(err); }
+  };
 
-export const requestPasswordReset = catchAsync(async (req: Request, res: Response) => {
-  const result = await AuthService.requestPasswordReset(req.body.email);
-  sendResponse(res, { statusCode: 200, success: true, message: result.message, data: null });
-});
-
-export const verifyResetCode = catchAsync(async (req: Request, res: Response) => {
-  const result = await AuthService.verifyResetCode(req.body.email, req.body.code);
-  sendResponse(res, { statusCode: 200, success: true, message: result.message, data: null });
-});
-
-export const resetPasswordController = catchAsync(async (req: Request, res: Response) => {
-  const result = await AuthService.resetPassword(req.body.email, req.body.code, req.body.newPassword);
-  sendResponse(res, { statusCode: 200, success: true, message: result.message, data: null });
-});
-
-export const getMe = catchAsync(async (req: Request, res: Response) => {
-  const user = await AuthService.getMe(req.user!.id);
-  sendResponse(res, { statusCode: 200, success: true, message: "User fetched", data: user });
-});
-
-// auth.controller.ts
-export const logout = catchAsync(async (req: Request, res: Response) => {
-  res.clearCookie("accessToken", { path: "/" });
-  res.clearCookie("refreshToken", { path: "/" });
-  sendResponse(res, { statusCode: 200, success: true, message: "Logged out successfully", data: null });
-});
-
-export const changePasswordController = catchAsync(async (req: Request, res: Response) => {
-  const { oldPassword, newPassword } = req.body;
-  const result = await AuthService.changePassword(req.user!.id, oldPassword, newPassword);
-  sendResponse(res, { statusCode: 200, success: true, message: result.message, data: null });
-});
+  // Placeholder — full refresh token logic on Day 2 if needed
+  refresh = async (req: Request, res: Response) => {
+    sendError(res, 501, 'NOT_IMPLEMENTED', 'Token refresh not yet implemented');
+  };
+}

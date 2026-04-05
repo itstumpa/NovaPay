@@ -16,11 +16,11 @@ export const env = {
   PORT: parseInt(optional('PORT', '3000')),
   DATABASE_URL: required('DATABASE_URL'),
   REDIS_URL: optional('REDIS_URL', 'redis://localhost:6379'),
-
+FRONTEND_URL: optional('FRONTEND_URL', 'http://localhost:3000'),
   JWT_SECRET: required('JWT_SECRET'),
   JWT_EXPIRES_IN: optional('JWT_EXPIRES_IN', '7d'),
 
-  MASTER_ENCRYPTION_KEY: required('MASTER_ENCRYPTION_KEY'),
+  ENCRYPTION_MASTER_KEY: required('ENCRYPTION_MASTER_KEY'),
   DATA_ENCRYPTION_KEY: required('DATA_ENCRYPTION_KEY'),
 
   SUPER_ADMIN_EMAIL: required('SUPER_ADMIN_EMAIL'),
