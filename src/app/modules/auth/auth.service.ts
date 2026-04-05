@@ -1,9 +1,9 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { prisma } from '../../config/prisma';
-import { env } from '../../config/env';
-import { UserRole, UserStatus } from '@prisma/client';
-import { logger } from '../../../utils/logger';
+import { UserRole, UserStatus } from "@prisma/client";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { logger } from "../../../utils/logger";
+import { env } from "../../config/env";
+import prisma from "../../config/prisma";
 
 export class AuthService {
   async register(data: {
@@ -12,8 +12,10 @@ export class AuthService {
     name: string;
     role?: UserRole;
   }) {
-    const existing = await prisma.user.findUnique({ where: { email: data.email } });
-    if (existing) throw new Error('Email already registered');
+    const existing = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+    if (existing) throw new Error("Email already registered");
 
     const passwordHash = await bcrypt.hash(data.password, 12);
 
@@ -25,32 +27,52 @@ export class AuthService {
         role: data.role ?? UserRole.CUSTOMER,
         status: UserStatus.ACTIVE,
       },
-      select: { id: true, email: true, name: true, role: true, status: true, createdAt: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        status: true,
+        createdAt: true,
+      },
     });
 
     // Auto-create a USD wallet on registration
     await prisma.wallet.create({
-      data: { userId: user.id, currency: 'USD', balance: 0 },
+      data: { userId: user.id, currency: "USD", balance: 0 },
     });
 
-    logger.info('New user registered', { userId: user.id, email: user.email, role: user.role });
+    logger.info("New user registered", {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
     return user;
   }
 
-  async login(email: string, password: string, ipAddress?: string, userAgent?: string) {
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+  async login(
+    email: string,
+    password: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+    });
 
-    if (!user) throw new Error('Invalid email or password');
-    if (user.status === UserStatus.SUSPENDED) throw new Error('Account suspended. Contact support.');
-    if (user.status === UserStatus.PENDING_VERIFICATION) throw new Error('Account pending verification');
+    if (!user) throw new Error("Invalid email or password");
+    if (user.status === UserStatus.SUSPENDED)
+      throw new Error("Account suspended. Contact support.");
+    if (user.status === UserStatus.PENDING_VERIFICATION)
+      throw new Error("Account pending verification");
 
     const passwordValid = await bcrypt.compare(password, user.passwordHash);
-    if (!passwordValid) throw new Error('Invalid email or password');
+    if (!passwordValid) throw new Error("Invalid email or password");
 
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
       env.JWT_SECRET,
-      { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] }
+      { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"] },
     );
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -64,7 +86,7 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    logger.info('User logged in', { userId: user.id, email: user.email });
+    logger.info("User logged in", { userId: user.id, email: user.email });
 
     return {
       token,
@@ -81,6 +103,6 @@ export class AuthService {
 
   async logout(token: string) {
     await prisma.session.deleteMany({ where: { token } });
-    logger.info('User logged out');
+    logger.info("User logged out");
   }
 }

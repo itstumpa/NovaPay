@@ -1,7 +1,7 @@
-import { prisma } from '../../config/prisma';
+import  prisma  from '../../config/prisma';
 import { Currency, UserRole, UserStatus, WalletStatus } from '@prisma/client';
-import { encrypt, decrypt } from '../../utils/encryption';
-import { logger } from '../../utils/logger';
+import { encrypt, decrypt } from '../../../utils/encryption';
+import { logger } from '../../../utils/logger';
 
 export class AccountService {
   // ─── User ───────────────────────────────────────

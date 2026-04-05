@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AccountService } from './account.service';
-import { sendSuccess, ApiErrors } from '../../utils/apiResponse';
+import { sendSuccess, ApiErrors } from '../../../utils/apiResponse';
 import { Currency, UserRole, UserStatus } from '@prisma/client';
 import { z } from 'zod';
 
@@ -53,7 +53,7 @@ export class AccountController {
 
   getWallet = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const wallet = await service.getWallet(req.params.walletId, req.userId!);
+      const wallet = await service.getWallet(req.params.walletId as string, req.userId!);
       if (!wallet) return ApiErrors.NOT_FOUND(res, 'Wallet');
       sendSuccess(res, wallet);
     } catch (err) { next(err); }
@@ -61,7 +61,7 @@ export class AccountController {
 
   getBalance = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const balance = await service.getBalance(req.params.walletId, req.userId!);
+      const balance = await service.getBalance(req.params.walletId as string, req.userId!);
       if (!balance) return ApiErrors.NOT_FOUND(res, 'Wallet');
       sendSuccess(res, balance);
     } catch (err) { next(err); }
@@ -84,7 +84,7 @@ export class AccountController {
 
   getUserById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = await service.getUserById(req.params.userId);
+      const user = await service.getUserById(req.params.userId as string);
       if (!user) return ApiErrors.NOT_FOUND(res, 'User');
       sendSuccess(res, user);
     } catch (err) { next(err); }
@@ -93,7 +93,7 @@ export class AccountController {
   updateUserStatus = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { status } = updateStatusSchema.parse(req.body);
-      const user = await service.updateUserStatus(req.params.userId, status, req.userId!);
+      const user = await service.updateUserStatus(req.params.userId as string, status, req.userId!);
       sendSuccess(res, user);
     } catch (err) { next(err); }
   };
