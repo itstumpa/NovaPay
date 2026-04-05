@@ -3,6 +3,7 @@ import app from "./app";
 import { bootstrapApp } from "./app/bootstrap";
 import { config } from "./app/config";
 import  prisma  from "./app/config/prisma";
+import { logger } from "./utils/logger";
 
 // Start server
 async function startServer() {
@@ -15,7 +16,7 @@ async function startServer() {
     const server = http.createServer(app);
 
     server.listen(port, () => {
-      console.log(`Server is running on http://localhost:${port} `);
+console.log(`\n🚀 NovaPay API is running at http://localhost:${port}`);
     });
 
     server.setTimeout(120000);
@@ -49,7 +50,7 @@ async function startServer() {
       }
     });
   } catch (error) {
-    console.log("server failed to start", error);
+    logger.error('Failed to start server', { error: (error as Error).message });
     await prisma.$disconnect();
     process.exit(1);
   }
