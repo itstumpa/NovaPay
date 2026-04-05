@@ -5,6 +5,10 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
 enum UserRole {
   CUSTOMER
   VENDOR
@@ -19,19 +23,394 @@ enum UserStatus {
   PENDING_VERIFICATION
 }
 
-model User {
-  id                  String    @id @default(cuid())
-  name                String
-  email               String    @unique
-  password            String
-  role                Role      @default(CUSTOMER)
-  isEmailVerified     Boolean   @default(false)
-  emailVerifyToken    String?
-  emailVerifyExpiry   DateTime?
-  passwordResetToken  String?
-  passwordResetExpiry DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+enum Currency {
+  USD
+  EUR
+  GBP
+  BDT
+  SGD
+  AED
 }
+
+enum WalletStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+enum TransactionType {
+  TRANSFER          // user to user
+  PAYROLL_CREDIT    // salary credit to employee
+  PAYROLL_DEBIT     // bulk debit from employer
+  FX_CONVERSION     // currency exchange
+  FEE               // platform fee
+  REFUND            // reversal
+  ADJUSTMENT        // admin manual adjustment
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REVERSED
+  REQUIRES_RECOVERY // crashed mid-way — needs recovery worker
+}
+
+enum LedgerEntryType {
+  DEBIT
+  CREDIT
+}
+
+enum FxQuoteStatus {
+  ACTIVE    // valid, not used
+  USED      // consumed by a transfer
+  EXPIRED   // TTL passed
+  CANCELLED
+}
+
+enum PayrollJobStatus {
+  QUEUED
+  PROCESSING
+  PARTIALLY_COMPLETED // some credits done, some failed
+  COMPLETED
+  FAILED
+}
+
+enum IdempotencyStatus {
+  PROCESSING // locked — concurrent requests wait
+  COMPLETED  // response cached
+  FAILED     // can be retried with same key
+}
+
+// ─────────────────────────────────────────────
+// MODULE: ACCOUNT
+// ─────────────────────────────────────────────
+
+model User {
+  id               String     @id @default(uuid())
+  email            String     @unique
+  passwordHash     String     
+  name             String
+  role             UserRole   @default(CUSTOMER)
+  status           UserStatus @default(PENDING_VERIFICATION)
+
+  // Encrypted sensitive fields (field-level encryption via app layer)
+  phoneEncrypted   String?    // encrypted phone number
+  nationalIdEncrypted String? // encrypted NID/passport
+
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  lastLoginAt      DateTime?
+
+  // Relations
+  wallets          Wallet[]
+  sentTransactions      Transaction[] @relation("SenderTransactions")
+  receivedTransactions  Transaction[] @relation("ReceiverTransactions")
+  payrollJobsCreated    PayrollJob[]
+  auditLogs             AuditLog[]
+  sessions              Session[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  ipAddress String?
+  userAgent String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Wallet {
+  id           String       @id @default(uuid())
+  userId       String
+  currency     Currency
+  balance      Decimal      @default(0) @db.Decimal(20, 6) // never use float for money!
+  status       WalletStatus @default(ACTIVE)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  user              User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  debitEntries      LedgerEntry[] @relation("DebitWallet")
+  creditEntries     LedgerEntry[] @relation("CreditWallet")
+
+  // One wallet per currency per user
+  @@unique([userId, currency])
+  @@index([userId])
+  @@index([currency])
+  @@index([status])
+  @@map("wallets")
+}
+
+// ─────────────────────────────────────────────
+// MODULE: TRANSACTION
+// ─────────────────────────────────────────────
+
+model Transaction {
+  id              String            @id @default(uuid())
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+
+  senderId        String?           // null for system-generated (e.g. fee credits)
+  receiverId      String?
+
+  senderWalletId  String?
+  receiverWalletId String?
+
+  amount          Decimal           @db.Decimal(20, 6)
+  currency        Currency
+
+  // FX fields — only for international transfers
+  fxQuoteId       String?           @unique
+  fxRate          Decimal?          @db.Decimal(20, 8)
+  sourceCurrency  Currency?
+  sourceAmount    Decimal?          @db.Decimal(20, 6)
+
+  // Fee tracking
+  feeAmount       Decimal?          @db.Decimal(20, 6)
+  feeCurrency     Currency?
+
+  // Idempotency
+  idempotencyKey  String?           @unique
+
+  // Payroll reference
+  payrollJobId    String?
+  payrollItemId   String?
+
+  // Recovery tracking (for Scenario C)
+  debitCompletedAt  DateTime?
+  creditCompletedAt DateTime?
+
+  metadata        Json?             // extra info, never put sensitive data here
+  failureReason   String?
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  completedAt     DateTime?
+
+  // Relations
+  sender          User?             @relation("SenderTransactions", fields: [senderId], references: [id], onDelete: Restrict)
+  receiver        User?             @relation("ReceiverTransactions", fields: [receiverId], references: [id], onDelete: Restrict)
+  ledgerEntries   LedgerEntry[]
+  fxQuote         FxQuote?          @relation(fields: [fxQuoteId], references: [id])
+  payrollJob      PayrollJob?       @relation(fields: [payrollJobId], references: [id])
+  payrollItem     PayrollItem?      @relation(fields: [payrollItemId], references: [id])
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+  @@index([type])
+  @@index([payrollJobId])
+  @@index([createdAt]) // for history queries — always index time columns
+  @@map("transactions")
+}
+
+// ─────────────────────────────────────────────
+// MODULE: LEDGER (Double-Entry Bookkeeping)
+// ─────────────────────────────────────────────
+
+model LedgerEntry {
+  id            String          @id @default(uuid())
+  transactionId String
+  walletId      String
+  entryType     LedgerEntryType // DEBIT or CREDIT
+  amount        Decimal         @db.Decimal(20, 6)
+  currency      Currency
+  balanceBefore Decimal         @db.Decimal(20, 6) // snapshot for audit
+  balanceAfter  Decimal         @db.Decimal(20, 6) // snapshot for audit
+
+  // Audit hash chain — each entry hashes the previous
+  // This means if someone tampers with a record, the chain breaks
+  entryHash     String          @unique // SHA256 of (prevHash + transactionId + amount + walletId)
+  prevEntryHash String?         // null only for the very first entry ever
+
+  description   String?
+  createdAt     DateTime        @default(now())
+
+  // Relations
+  transaction   Transaction     @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  debitWallet   Wallet?         @relation("DebitWallet", fields: [walletId], references: [id], onDelete: Restrict, map: "ledger_entries_walletId_debit_fkey")
+  creditWallet  Wallet?         @relation("CreditWallet", fields: [walletId], references: [id], onDelete: Restrict, map: "ledger_entries_walletId_credit_fkey")
+
+  @@index([transactionId])
+  @@index([walletId])
+  @@index([createdAt])
+  @@map("ledger_entries")
+}
+
+// Internal NovaPay system accounts (fee collection, suspense, etc.)
+model SystemAccount {
+  id          String   @id @default(uuid())
+  name        String   @unique // e.g. "novapay_fee_account", "suspense_account"
+  currency    Currency
+  balance     Decimal  @default(0) @db.Decimal(20, 6)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@map("system_accounts")
+}
+
+// ─────────────────────────────────────────────
+// MODULE: FX
+// ─────────────────────────────────────────────
+
+model FxQuote {
+  id             String      @id @default(uuid())
+  userId         String
+  fromCurrency   Currency
+  toCurrency     Currency
+  rate           Decimal     @db.Decimal(20, 8)
+  inverseRate    Decimal     @db.Decimal(20, 8) // stored for convenience
+  sourceAmount   Decimal     @db.Decimal(20, 6)
+  targetAmount   Decimal     @db.Decimal(20, 6)
+
+  status         FxQuoteStatus @default(ACTIVE)
+
+  // TTL — 60 seconds from issuance
+  issuedAt       DateTime    @default(now())
+  expiresAt      DateTime    // issuedAt + 60 seconds
+
+  // Single-use enforcement
+  usedAt         DateTime?
+  usedByTransactionId String? @unique
+
+  // Provider info — never fall back silently
+  providerName   String      // e.g. "exchangerate-api"
+  providerRateId String?     // ID from provider if they give one
+
+  // Relations
+  transaction    Transaction?
+
+  @@index([userId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("fx_quotes")
+}
+
+// ─────────────────────────────────────────────
+// MODULE: PAYROLL
+// ─────────────────────────────────────────────
+
+model PayrollJob {
+  id              String           @id @default(uuid())
+  createdById     String           // corporate user who triggered
+  employerWalletId String
+  currency        Currency
+
+  totalAmount     Decimal          @db.Decimal(20, 6)
+  totalItems      Int
+  processedItems  Int              @default(0)
+  failedItems     Int              @default(0)
+
+  status          PayrollJobStatus @default(QUEUED)
+
+  // Idempotency for the whole job
+  idempotencyKey  String           @unique
+
+  // Resumability checkpoint — which item index we're at
+  lastProcessedIndex Int           @default(0)
+
+  metadata        Json?
+  failureReason   String?
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  completedAt     DateTime?
+
+  // Relations
+  createdBy       User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  items           PayrollItem[]
+  transactions    Transaction[]
+
+  @@index([createdById])
+  @@index([status])
+  @@index([createdAt])
+  @@map("payroll_jobs")
+}
+
+model PayrollItem {
+  id              String            @id @default(uuid())
+  payrollJobId    String
+  employeeUserId  String
+  employeeWalletId String
+  amount          Decimal           @db.Decimal(20, 6)
+  currency        Currency
+  status          TransactionStatus @default(PENDING)
+  processedAt     DateTime?
+  failureReason   String?
+  itemIndex       Int               // position in the batch — used for resumability
+
+  // Relations
+  payrollJob      PayrollJob        @relation(fields: [payrollJobId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+
+  @@index([payrollJobId])
+  @@index([status])
+  @@index([itemIndex])
+  @@map("payroll_items")
+}
+
+// ─────────────────────────────────────────────
+// MODULE: IDEMPOTENCY
+// ─────────────────────────────────────────────
+
+model IdempotencyRecord {
+  id              String            @id @default(uuid())
+  key             String            @unique
+  userId          String?
+  endpoint        String            // e.g. "/api/payroll/disburse"
+  requestHash     String            // SHA256 of request body — detects payload mismatch (Scenario E)
+  status          IdempotencyStatus @default(PROCESSING)
+  responseStatus  Int?              // HTTP status code cached
+  responseBody    Json?             // full response body cached
+  createdAt       DateTime          @default(now())
+  expiresAt       DateTime          // createdAt + 24 hours (Scenario D)
+  completedAt     DateTime?
+
+  @@index([key])
+  @@index([expiresAt])
+  @@index([userId])
+  @@map("idempotency_records")
+}
+
+// ─────────────────────────────────────────────
+// MODULE: ADMIN / AUDIT
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?  // who did it (null = system)
+  action       String   // e.g. "USER_SUSPENDED", "TRANSACTION_REVERSED"
+  resourceType String   // e.g. "User", "Transaction", "Wallet"
+  resourceId   String
+  before       Json?    // state before change
+  after        Json?    // state after change
+  ipAddress    String?
+  requestId    String?  // ties to request trace
+  createdAt    DateTime @default(now())
+
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
 
 

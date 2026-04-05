@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { prisma } from "../../../lib/prisma";
+import { prisma } from "../../config/prisma";
 
 // CREATE
 export const createUser = async (data: {
@@ -64,7 +64,7 @@ export const getUserById = async (id: string) => {
 // UPDATE
 export const updateUser = async (
   id: string,
-  data: { name?: string; email?: string }
+  data: { name?: string; email?: string },
 ) => {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) throw new Error("User not found");

@@ -1,9 +1,9 @@
 // src/config/passport.ts
-import passport from "passport";
-import { Strategy as JwtStrategy, ExtractJwt } from "passport-jwt";
-import { prisma } from "../../lib/prisma";
 import { Request } from "express";
+import passport from "passport";
+import { Strategy as JwtStrategy } from "passport-jwt";
 import config from "./index";
+import { prisma } from "./prisma";
 
 // ✅ Extract JWT from cookie instead of Authorization header
 const cookieExtractor = (req: Request): string | null => {
@@ -19,14 +19,16 @@ passport.use(
     },
     async (_req, payload, done) => {
       try {
-        const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+        const user = await prisma.user.findUnique({
+          where: { id: payload.sub },
+        });
         if (!user) return done(null, false);
         return done(null, user);
       } catch (err) {
         return done(err, false);
       }
-    }
-  )
+    },
+  ),
 );
 
 export default passport;

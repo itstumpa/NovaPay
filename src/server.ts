@@ -1,9 +1,8 @@
-import { Server } from "http";
-import http from "http";
-import { bootstrapApp } from "./app/bootstrap";
+import http, { Server } from "http";
 import app from "./app";
-import { prisma } from "./lib/prisma";
+import { bootstrapApp } from "./app/bootstrap";
 import config from "./app/config";
+import { prisma } from "./app/config/prisma";
 
 // Start server
 async function startServer() {
@@ -17,9 +16,8 @@ async function startServer() {
 
     server.listen(port, () => {
       console.log(`Server is running on http://localhost:${port} `);
-
     });
-    
+
     server.setTimeout(120000);
 
     const exitHandler = () => {
