@@ -18,11 +18,7 @@ import notFound from "./app/middlewares/notFound";
 
 const app: Application = express();
 
-/**
- * ─────────────────────────────────────────────────────────────
- * 1. Security Middlewares (FIRST)
- * ─────────────────────────────────────────────────────────────
- */
+
 app.use(helmet());
 app.use(cors({
   origin: env.IS_PRODUCTION ? ['https://novapay.com'] : '*',
@@ -30,36 +26,17 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'X-Request-Id'],
 }));
 
-/**
- * ─────────────────────────────────────────────────────────────
- * 2. Core Middlewares
- * ─────────────────────────────────────────────────────────────
- */
+
 app.use(compression());              // gzip
 app.use(cookieParser());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
 
-/**
- * ─────────────────────────────────────────────────────────────
- * 3. Rate Limiting
- * ─────────────────────────────────────────────────────────────
- */
 app.use(rateLimiter());
 
-/**
- * ─────────────────────────────────────────────────────────────
- * 4. Request Tracing
- * ─────────────────────────────────────────────────────────────
- */
 app.use(requestIdMiddleware);
 
-/**
- * ─────────────────────────────────────────────────────────────
- * 5. Request Logging
- * ─────────────────────────────────────────────────────────────
- */
 app.use((req, res, next) => {
   const start = Date.now();
 
@@ -78,11 +55,6 @@ app.use((req, res, next) => {
   next();
 });
 
-/**
- * ─────────────────────────────────────────────────────────────
- * 6. Health Check
- * ─────────────────────────────────────────────────────────────
- */
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -93,18 +65,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-/**
- * ─────────────────────────────────────────────────────────────
- * 7. API Routes
- * ─────────────────────────────────────────────────────────────
- */
 app.use("/api/v1", router);
 
-/**
- * ─────────────────────────────────────────────────────────────
- * 8. Root Route
- * ─────────────────────────────────────────────────────────────
- */
 app.get("/", (_req: Request, res: Response) => {
   res.send({
     message: "Server Is Running..",
@@ -114,18 +76,8 @@ app.get("/", (_req: Request, res: Response) => {
   });
 });
 
-/**
- * ─────────────────────────────────────────────────────────────
- * 9. 404 Handler
- * ─────────────────────────────────────────────────────────────
- */
 app.use(notFoundHandler);
 
-/**
- * ─────────────────────────────────────────────────────────────
- * 10. Global Error Handler
- * ─────────────────────────────────────────────────────────────
- */
 app.use(globalErrorHandler);
 
 export default app;
