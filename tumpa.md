@@ -63,7 +63,7 @@ npx tsx prisma/seed.ts
 ```
 ```
 
-# 1. Unzip and install
+# 1. install
 npm install
 
 # 2. Start DB and Redis
