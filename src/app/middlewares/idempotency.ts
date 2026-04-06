@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { prisma } from '../config/prisma';
+import  prisma  from '../config/prisma';
 import { sha256 } from '../../utils/encryption';
 import { ApiErrors, sendError } from '../../utils/apiResponse';
 import { IdempotencyStatus } from '@prisma/client';

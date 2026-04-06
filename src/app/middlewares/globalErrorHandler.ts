@@ -1,9 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { Request, Response, NextFunction } from "express";
 import httpStatus from "http-status";
-import config from "../config";
+// import config from "../config";
 import { ZodError } from "zod";
 import ApiError from "../../utils/apiErrors";
+import { env } from "../config/env";
+// import { config } from "../config";
 
 const globalErrorHandler = (
   err: any,
@@ -11,7 +13,7 @@ const globalErrorHandler = (
   res: Response,
   _next: NextFunction,
 ) => {
-  if (config.node_env === "development") {
+  if (env.NODE_ENV  === "development") {
     console.log(err);
   }
 
@@ -88,8 +90,8 @@ if (err instanceof ZodError) {
   res.status(statusCode).json({
     success: false,
     message,
-    error: config.node_env === "development" ? err : undefined,
-    stack: config.node_env === "development" ? err.stack : undefined,
+    error: env.NODE_ENV  === "development" ? err : undefined,
+    stack: env.NODE_ENV  === "development" ? err.stack : undefined,
   });
 };
 
