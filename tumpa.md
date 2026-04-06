@@ -61,6 +61,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 npx tsx prisma/seed.ts
 ```
+```
 
 # 1. Unzip and install
 npm install
@@ -76,3 +77,5 @@ npm run seed
 
 # 5. Start server
 npm run dev
+
+```
