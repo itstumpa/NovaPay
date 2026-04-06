@@ -14,7 +14,7 @@ let redis: Redis | null = null;
 export const getRedis = (): Redis => {
   if (!redis) {
     redis = new Redis(REDIS_URL!, {
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: null,
       connectTimeout: 10000,
       enableReadyCheck: true,
       lazyConnect: false,        // explicit (this is already the default)

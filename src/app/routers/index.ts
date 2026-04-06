@@ -1,9 +1,11 @@
 import { Router } from "express";
+import { authRouter } from "../auth/auth.routes";
 import { accountRouter } from "../modules/account/account.routes";
-import { authRouter } from "../modules/auth/auth.routes";
 import UserRoutes from "../modules/users/users.routes";
 //import { authenticate, authorize } from "../middlewares/auth";
+import { fxRouter } from "../modules/fx/fx.routes";
 import { transactionRouter } from "../modules/transaction/transaction.routes";
+import { payrollRouter } from "../modules/payroll/payroll.routes";
 
 const router = Router();
 
@@ -11,8 +13,8 @@ router.use("/auth", authRouter);
 router.use("/account", accountRouter);
 router.use("/users", UserRoutes);
 router.use("/transactions", transactionRouter);
-// router.use("/fx", fxRouter);
-// router.use("/payroll", payrollRouter);
+router.use("/fx", fxRouter);
+router.use("/payroll", payrollRouter);
 
 // app.use('/api/transactions', transactionRouter);
 // app.use('/api/ledger', ledgerRouter);
