@@ -6,6 +6,7 @@ import UserRoutes from "../modules/users/users.routes";
 import { fxRouter } from "../modules/fx/fx.routes";
 import { transactionRouter } from "../modules/transaction/transaction.routes";
 import { payrollRouter } from "../modules/payroll/payroll.routes";
+import { adminRouter } from "../modules/admin/admin.routes";
 
 const router = Router();
 
@@ -15,6 +16,7 @@ router.use("/users", UserRoutes);
 router.use("/transactions", transactionRouter);
 router.use("/fx", fxRouter);
 router.use("/payroll", payrollRouter);
+router.use("/admin", adminRouter);
 
 // app.use('/api/transactions', transactionRouter);
 // app.use('/api/ledger', ledgerRouter);

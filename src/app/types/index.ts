@@ -1,4 +1,4 @@
-import { Role } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 
 declare global {
   namespace Express {
@@ -6,7 +6,7 @@ declare global {
       id: string;
       name: string;
       email: string;
-      role: Role;
+      role: UserRole;
       isEmailVerified: boolean;
     }
       interface ProcessEnv {
@@ -15,5 +15,10 @@ declare global {
     JWT_ACCESS_EXPIRES: string;
     JWT_REFRESH_EXPIRES: string;
   }
+
+  interface jest {
+    
+  }
+  
   }
 }
