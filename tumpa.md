@@ -36,8 +36,7 @@ npx prisma migrate dev --name init
 
 
 ## 🧒 Daily Routine From Now On
-```
-```
+
 1. Open Docker Desktop → leave it running
 2. Open VS Code terminal
 3. Type → docker-compose up
