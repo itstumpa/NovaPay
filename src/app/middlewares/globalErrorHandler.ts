@@ -1,11 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { Request, Response, NextFunction } from "express";
 import httpStatus from "http-status";
-// import config from "../config";
 import { ZodError } from "zod";
-import ApiError from "../../utils/apiErrors";
 import { env } from "../config/env";
-// import { config } from "../config";
+import { AppError } from "../../utils/errors";
 
 const globalErrorHandler = (
   err: any,
@@ -76,7 +74,7 @@ if (err instanceof ZodError) {
   }
 
   // ---------------- custom AppError ---------------- */
-  else if (err instanceof ApiError) {
+  else if (err instanceof AppError) {
     statusCode = err.statusCode;
     message = err.message;
   }
