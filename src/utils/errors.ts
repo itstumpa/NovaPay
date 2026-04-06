@@ -81,6 +81,7 @@ export class FxQuoteExpiredError extends AppError {
   }
 }
 
+
 export class FxQuoteUsedError extends AppError {
   constructor() {
     super(
