@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { z } from "zod";
-import { sendError, sendSuccess } from "../../utils/apiResponse";
+import { sendError, sendSuccess } from "../../../utils/apiResponse";
 import { AuthService } from "./auth.service";
 
 const service = new AuthService();

@@ -1,9 +1,9 @@
 import { UserRole, UserStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { logger } from "../../utils/logger";
-import { env } from "../config/env";
-import prisma from "../config/prisma";
+import { logger } from "../../../utils/logger";
+import { env } from "../../config/env";
+import prisma from "../../config/prisma";
 
 export class AuthService {
   async register(data: {

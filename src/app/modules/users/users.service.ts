@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { prisma } from "../../config/prisma";
+import  prisma  from "../../config/prisma";
 
 // CREATE
 export const createUser = async (data: {
@@ -21,12 +21,12 @@ export const createUser = async (data: {
   const user = await prisma.user.create({
     data: {
       ...data,
-      password: hashedPassword,
+      passwordHash: hashedPassword,
     },
   });
 
   // never return password
-  const { password, ...userWithoutPassword } = user;
+  const { passwordHash, ...userWithoutPassword } = user;
   return userWithoutPassword;
 };
 
