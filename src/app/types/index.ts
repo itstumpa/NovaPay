@@ -23,5 +23,12 @@ declare global {
       JWT_ACCESS_EXPIRES: string;
       JWT_REFRESH_EXPIRES: string;
     }
+
+    interface JwtPayload {
+  userId: string;
+  email: string;
+  role: string;
+}
+
   }
 }

@@ -17,7 +17,7 @@ export const env = {
   PORT: parseInt(optional('PORT', '3000')),
   REDIS_URL: optional('REDIS_URL', 'redis://localhost:6379'),
 FRONTEND_URL: optional('FRONTEND_URL', 'http://localhost:3000'),
-  JWT_SECRET: process.env.JWT_SECRET,
+  JWT_SECRET: process.env.JWT_SECRET as string,
   JWT_EXPIRES_IN: optional('JWT_EXPIRES_IN', '7d'),
 
   ENCRYPTION_MASTER_KEY: process.env.ENCRYPTION_MASTER_KEY,
