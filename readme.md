@@ -28,7 +28,7 @@ docker-compose up postgres redis -d
 npm run prisma:migrate
 
 # 4. Seed test data
-npm run seed
+npx tsx prisma/seed.ts
 
 # 5. Start dev server
 npm run dev
