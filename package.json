@@ -9,6 +9,7 @@
   "scripts": {
     "test": "jest --runInBand",
     "dev": "ts-node-dev --respawn --transpile-only ./src/server.ts",
+    "test:ci": "jest --runInBand --coverage",
     "postinstall": "prisma generate",
     "build": "tsc",
     "test:watch": "jest --watch",
