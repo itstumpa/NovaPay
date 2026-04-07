@@ -65,7 +65,7 @@ export class AuthController {
     }
   };
 
-  // Placeholder — full refresh token logic on Day 2 if needed
+  // Placeholder — full refresh token logic will be implement later
   refresh = async (req: Request, res: Response) => {
     sendError(res, 501, "NOT_IMPLEMENTED", "Token refresh not yet implemented");
   };
