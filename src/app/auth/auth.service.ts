@@ -1,5 +1,5 @@
 import { UserRole, UserStatus } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { logger } from "../../utils/logger";
 import { env } from "../config/env";

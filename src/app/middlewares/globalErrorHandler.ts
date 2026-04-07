@@ -1,9 +1,9 @@
 import { Prisma } from "@prisma/client";
-import { Request, Response, NextFunction } from "express";
+import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import { ZodError } from "zod";
-import { env } from "../config/env";
 import { AppError } from "../../utils/errors";
+import { env } from "../config/env";
 
 const globalErrorHandler = (
   err: any,
@@ -11,7 +11,7 @@ const globalErrorHandler = (
   res: Response,
   _next: NextFunction,
 ) => {
-  if (env.NODE_ENV  === "development") {
+  if (env.NODE_ENV === "development") {
     console.log(err);
   }
 
@@ -19,17 +19,17 @@ const globalErrorHandler = (
   let message = "Something went wrong";
 
   /* -------------------- Zod Error -------------------- */
-if (err instanceof ZodError) {
-  return res.status(httpStatus.BAD_REQUEST).json({
-    success: false,
-    message: "Zod Validation Error",
-    error: err.issues.map((e) => ({
-      path: e.path.join(".") || "body",
-      message: e.message,
-      code: e.code,
-    })),
-  });
-}
+  if (err instanceof ZodError) {
+    return res.status(httpStatus.BAD_REQUEST).json({
+      success: false,
+      message: "Zod Validation Error",
+      error: err.issues.map((e) => ({
+        path: e.path.join(".") || "body",
+        message: e.message,
+        code: e.code,
+      })),
+    });
+  }
 
   // ---------------- Prisma Known Errors ---------------- */
   else if (err instanceof Prisma.PrismaClientKnownRequestError) {
@@ -88,8 +88,8 @@ if (err instanceof ZodError) {
   res.status(statusCode).json({
     success: false,
     message,
-    error: env.NODE_ENV  === "development" ? err : undefined,
-    stack: env.NODE_ENV  === "development" ? err.stack : undefined,
+    error: env.NODE_ENV === "development" ? err : undefined,
+    stack: env.NODE_ENV === "development" ? err.stack : undefined,
   });
 };
 

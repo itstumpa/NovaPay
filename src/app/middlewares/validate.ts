@@ -1,7 +1,7 @@
 // src/middlewares/validateRequest.ts
 import { Request, Response, NextFunction } from "express";
 import { ZodObject, ZodError } from "zod";
-import ApiError from "../../utils/apiErrors";
+import { AppError } from "../../utils/errors";
 
 export const validate =
   (schema: ZodObject<any>) =>
@@ -16,7 +16,7 @@ export const validate =
     } catch (err) {
       if (err instanceof ZodError) {
         const message = err.issues.map((e) => e.message).join(", ");
-        return next(new ApiError(400, message));
+        return next(new AppError(message, 400));
       }
       next(err);
     }
