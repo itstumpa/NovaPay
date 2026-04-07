@@ -26,7 +26,11 @@ jobs:
 
       - name: Run tests
         run: npm run test:ci
-        
+        env:
+          NODE_ENV: test
+          SUPER_ADMIN_EMAIL: ${{ secrets.SUPER_ADMIN_EMAIL }}
+          SUPER_ADMIN_PASSWORD: ${{ secrets.SUPER_ADMIN_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
       - name: Build             
         run: npm run build

@@ -1,9 +1,13 @@
 import dotenv from 'dotenv';
+
+// Load env only once
 dotenv.config();
 
 function required(key: string): string {
   const value = process.env[key];
-  if (!value) throw new Error(`Missing required env var: ${key}`);
+  if (!value) {
+    throw new Error(`Missing required env var: ${key}`);
+  }
   return value;
 }
 
@@ -16,14 +20,15 @@ export const env = {
   NODE_ENV: optional('NODE_ENV', 'development'),
   PORT: parseInt(optional('PORT', '3000')),
   REDIS_URL: optional('REDIS_URL', 'redis://localhost:6379'),
-FRONTEND_URL: optional('FRONTEND_URL', 'http://localhost:3000'),
-  JWT_SECRET: process.env.JWT_SECRET as string,
+  FRONTEND_URL: optional('FRONTEND_URL', 'http://localhost:3000'),
+
+  JWT_SECRET: required('JWT_SECRET'),
   JWT_EXPIRES_IN: optional('JWT_EXPIRES_IN', '7d'),
 
   ENCRYPTION_MASTER_KEY: process.env.ENCRYPTION_MASTER_KEY,
   DATA_ENCRYPTION_KEY: process.env.DATA_ENCRYPTION_KEY,
 
-  SUPER_ADMIN_EMAIL: process.env.SUPER_ADMIN_EMAIL,
+  SUPER_ADMIN_EMAIL: required('SUPER_ADMIN_EMAIL'),
   SUPER_ADMIN_PASSWORD: required('SUPER_ADMIN_PASSWORD'),
   SUPER_ADMIN_NAME: optional('SUPER_ADMIN_NAME', 'Super Admin'),
 
