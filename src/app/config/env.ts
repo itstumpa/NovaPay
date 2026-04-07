@@ -12,16 +12,16 @@ function optional(key: string, fallback: string): string {
 }
 
 export const env = {
+  DATABASE_URL: process.env.DATABASE_URL,
   NODE_ENV: optional('NODE_ENV', 'development'),
   PORT: parseInt(optional('PORT', '3000')),
-  DATABASE_URL: required('DATABASE_URL'),
   REDIS_URL: optional('REDIS_URL', 'redis://localhost:6379'),
 FRONTEND_URL: optional('FRONTEND_URL', 'http://localhost:3000'),
-  JWT_SECRET: required('JWT_SECRET'),
+  JWT_SECRET: process.env.JWT_SECRET,
   JWT_EXPIRES_IN: optional('JWT_EXPIRES_IN', '7d'),
 
-  ENCRYPTION_MASTER_KEY: required('ENCRYPTION_MASTER_KEY'),
-  DATA_ENCRYPTION_KEY: required('DATA_ENCRYPTION_KEY'),
+  ENCRYPTION_MASTER_KEY: process.env.ENCRYPTION_MASTER_KEY,
+  DATA_ENCRYPTION_KEY: process.env.DATA_ENCRYPTION_KEY,
 
   SUPER_ADMIN_EMAIL: required('SUPER_ADMIN_EMAIL'),
   SUPER_ADMIN_PASSWORD: required('SUPER_ADMIN_PASSWORD'),

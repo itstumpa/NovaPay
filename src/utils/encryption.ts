@@ -18,11 +18,11 @@ const IV_LENGTH = 16;
 const TAG_LENGTH = 16;
 
 function getMasterKey(): Buffer {
-  return Buffer.from(env.ENCRYPTION_MASTER_KEY, 'hex');
+  return Buffer.from(env.ENCRYPTION_MASTER_KEY  || 'test-key', 'hex');
 }
 
 function getDataKey(): Buffer {
-  return Buffer.from(env.DATA_ENCRYPTION_KEY, 'hex');
+  return Buffer.from(env.DATA_ENCRYPTION_KEY || 'test-key', 'hex');
 }
 
 /**
