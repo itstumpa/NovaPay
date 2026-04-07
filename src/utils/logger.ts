@@ -1,9 +1,6 @@
 import winston from 'winston';
 import { env } from '../app/config/env';
-// import { env } from './config/env';
 
-// Custom format: every line must have requestId, userId, transactionId, timestamp
-// Never log passwords, tokens, raw card data
 const sensitiveFields = ['password', 'passwordHash', 'token', 'secret', 'cardNumber', 'cvv', 'pin'];
 
 function redactSensitive(obj: Record<string, unknown>): Record<string, unknown> {
@@ -30,16 +27,25 @@ const jsonFormat = winston.format.combine(
   })
 );
 
+// ✅ Conditionally create transports
+const transports: winston.transport[] = [
+  new winston.transports.Console({
+    format: env.IS_DEVELOPMENT
+      ? winston.format.combine(winston.format.colorize(), winston.format.simple())
+      : jsonFormat,
+  }),
+];
+
+// ❗ Only use file logs in local environment
+if (!env.IS_PRODUCTION) {
+  transports.push(
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' })
+  );
+}
+
 export const logger = winston.createLogger({
   level: env.IS_PRODUCTION ? 'info' : 'debug',
   format: jsonFormat,
-  transports: [
-    new winston.transports.Console({
-      format: env.IS_DEVELOPMENT
-        ? winston.format.combine(winston.format.colorize(), winston.format.simple())
-        : jsonFormat,
-    }),
-    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'logs/combined.log' }),
-  ],
+  transports,
 });
