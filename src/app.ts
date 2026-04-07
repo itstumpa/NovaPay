@@ -15,7 +15,6 @@ import { env } from "./app/config/env";
 import { notFoundHandler } from "./app/middlewares/errorHandler";
 import globalErrorHandler from "./app/middlewares/globalErrorHandler";
 import notFound from "./app/middlewares/notFound";
-import { validateEnv } from "./app/config/env.validation";
 
 const app: Application = express();
 
@@ -26,8 +25,6 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'X-Request-Id'],
 }));
-
-validateEnv();
 
 app.use(compression());              // gzip
 app.use(cookieParser());
